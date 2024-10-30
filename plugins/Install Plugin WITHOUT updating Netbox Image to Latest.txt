@@ -1,0 +1,81 @@
+#### SEE STEPS - NOTES####
+The below step will not update your netbox to the latest version but will keep it to the version you specify...in the steps below the version of netbox is v4.0.9, change this to your requirement.
+
+#####################################################
+#Go the directory, where Netbox Docker exists
+
+cd netbox-docker/
+
+#####################################################
+
+#Run the following command to create or amend plugin_requirements.txt:
+sudo nano plugin_requirements.txt
+
+#Input the desired plugin you wish to enable/install:
+netbox-plugin-dns
+
+#####################################################
+
+#Run the following command to create or amend Dockerfile-Plugins:
+sudo nano Dockerfile-Plugins
+
+#Input the following, Use the specific version of NetBox you want to maintain:
+FROM netboxcommunity/netbox:v4.0.9
+
+COPY ./plugin_requirements.txt /opt/netbox/
+RUN /opt/netbox/venv/bin/pip install  --no-warn-script-location -r /opt/netbox/plugin_requirements.txt
+
+# These lines are only required if your plugin has its own static files.
+COPY configuration/configuration.py /etc/netbox/config/configuration.py
+COPY configuration/plugins.py /etc/netbox/config/plugins.py
+
+RUN SECRET_KEY="dummydummydummydummydummydummydummydummydummydummy" /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
+
+#####################################################
+
+#Run the following command to update docker-compose.override.yml:
+sudo nano docker-compose.override.yml
+
+#Input the following, feel free to change the version number based on your requirement:
+services:
+  netbox:
+    image: netbox:v4.0.9-plugins
+    ports:
+      - 8000:8080
+    build:
+      context: .
+      dockerfile: Dockerfile-Plugins
+    pull_policy: never
+  netbox-worker:
+    image: netbox:v4.0.9-plugins
+    pull_policy: never
+  netbox-housekeeping:
+    image: netbox:v4.0.9-plugins
+    pull_policy: never
+
+#####################################################
+
+#Run the following command to update configuration/plugins.py:
+sudo nano configuration/plugins.py
+
+#Input the desired plugin you wish to enable/install:
+PLUGINS = [
+    "netbox_dns",
+]
+
+PLUGINS_CONFIG = {
+    "netbox_dns": {
+        # Add any specific configuration options for netbox_dns here
+    }
+}
+
+#####################################################
+
+#Run the following command to build and then recreate docker container:
+docker compose build --no-cache
+docker compose up -d
+
+#####################################################
+
+#Use this command if you need to migrate your database
+docker-compose exec netbox python3 manage.py migrate
