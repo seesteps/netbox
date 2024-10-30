@@ -2,6 +2,11 @@
 The below step will update your netbox to the latest version...if you wish to remain on the current version of netbox, do not use the steps listed below.....
 
 #####################################################
+#Go the directory, where Netbox Docker exists
+
+cd netbox-docker/
+
+#####################################################
 
 #Run the following command to create or amend plugin_requirements.txt:
 sudo nano plugin_requirements.txt
