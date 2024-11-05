@@ -1,0 +1,59 @@
+#How to enable SSL/HTTPS for your Netbox enviroment using your own certificate with Nginx
+
+#Pre-requiste - best practice to have your OS updated/upgraded
+sudo apt update
+sudo apt upgrade
+
+#Install nginx
+sudo apt install nginx
+
+#Allow firewall (if needed)
+sudo ufw app list
+
+#Allow Rule
+sudo ufw allow 'Nginx HTTP'
+sudo ufw allow 'Nginx Full'
+
+#check nginx service
+systemctl status nginx
+
+#check via web browser
+http://your_server_ip
+
+#Setting Up Server Blocks
+sudo nano /etc/nginx/sites-available/netbox.yourdomain.co.uk
+
+#input the following
+server {
+    listen 443 ssl;
+    server_name netbox.domain.co.uk;
+
+    ssl_certificate /folder/location/to/ssl/certificate.crt;
+    ssl_certificate_key /folder/location/to/ssl/certificate.key;
+
+    location / {
+        proxy_pass http://localhost:8000;  # The port where NetBox is running
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+#enable sites-available/netbox.seesteps.co.uk
+sudo ln -s /etc/nginx/sites-available/netbox.yourdomain.co.uk /etc/nginx/sites-enabled/
+
+#to avoid possible hash bucket memory issues uncomment out the following only if you plan to have more than one server block within Nginx, otherwise this is not needed
+sudo nano /etc/nginx/nginx.conf
+
+hashout - server_names_hash_bucket_size
+
+#Save and Exit
+
+#Run the following cmd to test nginx config
+sudo nginx -t
+
+#if successful, restart nginx
+sudo systemctl restart nginx
+
+You should now have SSL enabled for your netbox enviroment should be accessible via HTTPS

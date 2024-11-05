@@ -1,0 +1,81 @@
+#### SEE STEPS - NOTES####
+The below step will update your netbox to the latest version...if you wish to remain on the current version of netbox, do not use the steps listed below.....
+
+#####################################################
+#Go the directory, where Netbox Docker exists
+
+cd netbox-docker/
+
+#####################################################
+
+#Run the following command to create or amend plugin_requirements.txt:
+sudo nano plugin_requirements.txt
+
+#Input the desired plugin you wish to enable/install:
+netbox-plugin-dns
+netbox_bgp
+
+#####################################################
+
+#Run the following command to create or amend Dockerfile-Plugins:
+sudo nano Dockerfile-Plugins
+
+#Input the following:
+FROM netboxcommunity/netbox:latest
+
+COPY ./plugin_requirements.txt /opt/netbox/
+RUN /opt/netbox/venv/bin/pip install  --no-warn-script-location -r /opt/netbox/plugin_requirements.txt
+
+# These lines are only required if your plugin has its own static files.
+COPY configuration/configuration.py /etc/netbox/config/configuration.py
+COPY configuration/plugins.py /etc/netbox/config/plugins.py
+
+RUN SECRET_KEY="dummydummydummydummydummydummydummydummydummydummy" /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py collectstatic --no-input
+
+#####################################################
+
+#Run the following command to update docker-compose.override.yml:
+sudo nano docker-compose.override.yml
+
+#Input the following:
+services:
+  netbox:
+    image: netbox:latest-plugins
+    pull_policy: never
+    ports:
+      - 8000:8080
+    build:
+      context: .
+      dockerfile: Dockerfile-Plugins
+  netbox-worker:
+    image: netbox:latest-plugins
+    pull_policy: never
+  netbox-housekeeping:
+    image: netbox:latest-plugins
+    pull_policy: never
+
+#####################################################
+
+#Run the following command to update configuration/plugins.py:
+sudo nano configuration/plugins.py
+
+#Input the desired plugin you wish to enable/install:
+PLUGINS = [
+    "netbox_dns",
+    "netbox_bgp",
+]
+
+PLUGINS_CONFIG = {
+    "netbox_dns": {
+        # Add any specific configuration options for netbox_dns here
+    },
+    "netbox_bgp": {
+        # Add any specific configuration options for netbox_bgp here
+    }
+}
+
+#####################################################
+
+#Run the following command to build and then recreate docker container:
+docker compose build --no-cache
+docker compose up -d

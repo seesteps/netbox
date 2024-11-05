@@ -1,0 +1,107 @@
+#How to enable SSL/HTTPS for your Netbox enviroment using Cerbot-Cloudflare Plugin for Nginx to issue out a cert within your private webserver.
+
+#Pre-requiste - best practice to have your OS updated/upgraded
+sudo apt update
+sudo apt upgrade
+
+#Install nginx
+sudo apt install nginx
+
+#Allow firewall (if needed)
+sudo ufw app list
+
+#Allow Rule
+sudo ufw allow 'Nginx HTTP'
+sudo ufw allow 'Nginx Full'
+
+#check nginx service
+systemctl status nginx
+
+#check via web browser
+http://your_server_ip
+
+#Setting Up Server Blocks
+sudo nano /etc/nginx/sites-available/netbox.yourdomain.co.uk
+
+#input the following
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name netbox.domain.co.uk;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+#enable sites-available/netbox.seesteps.co.uk
+sudo ln -s /etc/nginx/sites-available/netbox.yourdomain.co.uk /etc/nginx/sites-enabled/
+
+#to avoid possible hash bucket memory issues uncomment out the following only if you plan to have more than one server block within Nginx, otherwise this is not needed
+sudo nano /etc/nginx/nginx.conf
+
+hashout - server_names_hash_bucket_size
+
+#Save and Exit
+
+#Run the following cmd to test nginx config
+sudo nginx -t
+
+#if successfully restart nginx
+sudo systemctl restart nginx
+
+You should now have SSL enabled for your netbox enviroment.
+
+===========================================================================
+
+#Remove Certbot
+sudo apt-get remove certbot
+
+
+#check if you have snap installed
+snap version
+
+#if not installed then use the following command
+sudo apt install snapd
+
+#install certbot 
+sudo snap install --classic certbot
+
+#prep certbot command
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+
+#acknowledge trust requirement for certbot plugin install (if using root login):
+sudo snap set certbot trust-plugin-with-root=ok
+
+#Install Cloudflare DNS Plugin
+sudo snap install certbot-dns-cloudflare
+
+#Verify Cloudflare DNS Plugin
+sudo certbot plugins
+
+#Create a hidden credentials folder for cloudflare API
+sudo mkdir -p ~/.secrets/certbot
+
+#Create API file within the hidden folder
+sudo nano ~/.secrets/certbot/cloudflare.ini
+
+#Input the following, with your API key from Cloudflare
+dns_cloudflare_api_token = YOUR_PUBLIC_DNS_API_KEY-CHECK_VIDEO_DESCRIPTION_ON_HOW_TO_OBTAIN_THIS_FOR_YOUR_CLOUDFLARE_ACCOUNT
+
+#Restrict permission to the file
+sudo chmod 600 ~/.secrets/certbot/cloudflare.ini
+
+#Run this command to get a certificate and have Certbot edit your nginx configuration automatically to serve it, turning on HTTPS access in a single step.
+sudo certbot -a dns-cloudflare --dns-cloudflare-credentials ~/.secrets/certbot/cloudflare.ini -i nginx -d netbox.domain.co.uk
+
+#Follow the cert wizard, input email and agree to terms
+
+#Certificate should now be issued and assigned to your netbox portal via nginx and accessible via HTTPS
+
+Check if dry run works (renewal)
+sudo certbot renew --dry-run

@@ -1,0 +1,87 @@
+#How to enable SSL/HTTPS for your Netbox enviroment using Cerbot for Nginx (use this command if your webserver is publicly available)
+
+#Pre-requiste - best practice to have your OS updated/upgraded
+sudo apt update
+sudo apt upgrade
+
+#Install nginx
+sudo apt install nginx
+
+#Allow firewall (if needed)
+sudo ufw app list
+
+#Allow Rule
+sudo ufw allow 'Nginx HTTP'
+sudo ufw allow 'Nginx Full'
+
+#check nginx service
+systemctl status nginx
+
+#check via web browser
+http://your_server_ip
+
+#Setting Up Server Blocks
+sudo nano /etc/nginx/sites-available/netbox.yourdomain.co.uk
+
+#input the following, change the port number if needed
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name netbox.domain.co.uk;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+#Save and Close
+
+#enable sites-available/netbox.seesteps.co.uk
+sudo ln -s /etc/nginx/sites-available/netbox.yourdomain.co.uk /etc/nginx/sites-enabled/
+
+#to avoid possible hash bucket memory issues uncomment out the following only if you plan to have more than one server block within Nginx, otherwise this is not needed
+sudo nano /etc/nginx/nginx.conf
+
+hashout - server_names_hash_bucket_size
+
+#Save and Exit
+
+#Run the following cmd to test nginx config
+sudo nginx -t
+
+#if successfully restart nginx
+sudo systemctl restart nginx
+
+=======================================================================
+
+#Remove Certbot (to avoid any legacy application causing issues, assuming you never had certbot installed)
+sudo apt-get remove certbot
+
+#check if you have snap installed
+snap version
+
+#if snap is not installed then use the following command
+sudo apt install snapd
+
+#install certbot 
+sudo snap install --classic certbot
+
+#prep certbot command
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+
+#Run this command to get a certificate and have Certbot edit your nginx configuration automatically to serve it, turning on HTTPS access in a single step, your web server needs to be accessible publicly.
+sudo certbot --nginx
+
+#Select the nginx server block you wish to target
+
+#Input email address and agree to terms
+
+#An SSL certificate should be issued
+
+#Check if dry run works for renewal
+sudo certbot renew --dry-run
